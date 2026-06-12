@@ -6,7 +6,7 @@ I have simplified WiLoR, focusing on the inference process. Now it can be instal
 
 ### How to use?
 Note: make sure you are using Python3.10
-* install: `pip install git+https://github.com/warmshao/WiLoR-mini`
+* install: `pip install git+https://github.com/Joeclinton1/WiLoR-mini`
 * Usage:
 ```python
 import torch
@@ -22,6 +22,21 @@ image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 outputs = pipe.predict(image)
 
 ```
+
+### Fast inference
+
+This fork ports the upstream WiLoR `--fast` path into WiLoR-mini. It uses half precision by default and enables the upstream ViT depth-pruning block skip. On CUDA/Linux it also compiles the backbone by default. On Windows, compilation is disabled by default because PyTorch Inductor requires a working Triton install.
+
+```python
+pipe = WiLorHandPose3dEstimationPipeline(device="cuda", fast=True)
+```
+
+To force compilation where your PyTorch environment supports it:
+
+```python
+pipe = WiLorHandPose3dEstimationPipeline(device="cuda", fast=True, compile_backbone=True)
+```
+
 For more usage examples, please refer to: `tests/test_pipelines.py`
 
 ### Demo

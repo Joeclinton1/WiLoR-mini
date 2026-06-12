@@ -10,6 +10,7 @@ import cv2
 from ultralytics import YOLO
 from huggingface_hub import hf_hub_download
 import os
+import platform
 import numpy as np
 from tqdm import tqdm
 import logging
@@ -31,7 +32,11 @@ class WiLorHandPose3dEstimationPipeline:
     def init_models(self, **kwargs):
         # default tot use CPU
         self.device = kwargs.get("device", torch.device("cpu"))
-        self.dtype = kwargs.get("dtype", torch.float32)
+        self.fast = kwargs.get("fast", False)
+        device_type = torch.device(self.device).type
+        compile_default = self.fast and device_type == "cuda" and platform.system() != "Windows"
+        self.compile_backbone = kwargs.get("compile_backbone", compile_default)
+        self.dtype = kwargs.get("dtype", torch.float16 if self.fast else torch.float32)
         self.FOCAL_LENGTH = 5000
         self.IMAGE_SIZE = 256
         self.WILOR_MINI_REPO_ID = kwargs.get("WILOR_MINI_REPO_ID", "warmshao/WiLoR-mini")
@@ -61,6 +66,11 @@ class WiLorHandPose3dEstimationPipeline:
         self.wilor_model.load_state_dict(torch.load(wilor_model_path)["state_dict"], strict=False)
         self.wilor_model.eval()
         self.wilor_model.to(self.device, dtype=self.dtype)
+        if self.fast:
+            torch.set_float32_matmul_precision("high")
+            self.wilor_model.backbone.skip_blocks = True
+            if self.compile_backbone:
+                self.wilor_model.backbone = torch.compile(self.wilor_model.backbone)
 
         yolo_model_path = os.path.join(wilor_pretrained_dir, "pretrained_models", "detector.pt")
         if not os.path.exists(yolo_model_path):

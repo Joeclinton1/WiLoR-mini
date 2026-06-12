@@ -254,6 +254,8 @@ class ViT(nn.Module):
         self.freeze_attn = freeze_attn
         self.freeze_ffn = freeze_ffn
         self.depth = depth
+        self.blocks_to_skip = [25, 27, 26, 23, 24, 29, 22, 13, 14, 15, 20]
+        self.skip_blocks = False
 
         if hybrid_backbone is not None:
             self.patch_embed = HybridEmbed(
@@ -323,7 +325,9 @@ class ViT(nn.Module):
         cam_tokens = self.cam_emb(self.init_cam).unsqueeze(1).repeat(B, 1, 1)
 
         x = torch.cat([pose_tokens, shape_tokens, cam_tokens, x], 1)
-        for blk in self.blocks:
+        for i, blk in enumerate(self.blocks):
+            if self.skip_blocks and i in self.blocks_to_skip[:5]:
+                continue
             x = blk(x)
 
         x = self.last_norm(x)
